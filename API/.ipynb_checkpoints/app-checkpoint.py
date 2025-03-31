@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify, render_template
+from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import start_http_server, Summary
 from pymongo import MongoClient
 from bson import json_util
 import os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-
+metrics = PrometheusMetrics(app)
 # MongoDB 連線
 MONGO_URI = "mongodb://mongo:27017/"
 client = MongoClient(MONGO_URI)
@@ -20,7 +22,7 @@ def log_data():
     if not data:
         return jsonify({"error": "No data received"}), 400
     
-    if data["temperature"] > 90 or data["pressure"] > 2.3:
+    if data["temperature"] > 90 or data["pressure"] > 2.2:
         alert_collection.insert_one({
         "machine_id": data["machine_id"],
         "issue": "High temperature/pressure",
@@ -95,3 +97,6 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+
+

@@ -1,7 +1,7 @@
 import time
 import random
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Thread
 
 API_URL = "http://flask_api:5000/log_data"
@@ -15,7 +15,7 @@ def generate_sensor_data(machine_id):
         "machine_id": machine_id,
         "temperature": round(random.uniform(60, 100), 2),
         "pressure": round(random.uniform(1.0, 2.5), 2),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
     }
 
 def simulate_device(machine_id):
