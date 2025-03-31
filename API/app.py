@@ -1,0 +1,97 @@
+from flask import Flask, request, jsonify, render_template
+from pymongo import MongoClient
+from bson import json_util
+import os
+
+app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# MongoDB 連線
+MONGO_URI = "mongodb://mongo:27017/"
+client = MongoClient(MONGO_URI)
+db = client["sensor_db"]
+collection = db["sensor_data"]
+alert_collection = db["alert_log"]  # <== 👈 新增這行
+
+#==================================================================================================
+# Write the Data
+@app.route("/log_data", methods=["POST"])
+def log_data():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+    
+    if data["temperature"] > 90 or data["pressure"] > 2.3:
+        alert_collection.insert_one({
+        "machine_id": data["machine_id"],
+        "issue": "High temperature/pressure",
+        "data": data
+    })
+    result = collection.insert_one(data)
+    return jsonify({
+        "status": "success",
+        "inserted_id": str(result.inserted_id)  # ✅ 把 ObjectId 轉成字串
+    }), 200
+
+#==================================================================================================
+# Get the newest Data
+@app.route("/get_data", methods=["GET"])
+def get_data():
+    all_data = list(collection.find().sort("timestamp", -1).limit(10))  # 回傳最新的 10 筆
+    return json_util.dumps(all_data), 200  # 使用 json_util 處理 ObjectId
+
+#==================================================================================================
+# Get the last Data
+@app.route("/latest_data", methods=["GET"])
+def latest_data():
+    latest_entry = collection.find_one(sort=[("timestamp", -1)])
+    if latest_entry:
+        latest_entry["_id"] = str(latest_entry["_id"])  # 轉換 ObjectId 為字串
+        return jsonify({"status": "success", "latest": latest_entry}), 200
+    else:
+        return jsonify({"status": "no data"}), 404
+#==================================================================================================
+@app.route("/get_latest_per_machine", methods=["GET"])
+def get_latest_per_machine():
+    pipeline = [
+        {"$sort": {"timestamp": -1}},
+        {"$group": {
+            "_id": "$machine_id",
+            "latest_record": {"$first": "$$ROOT"}
+        }},
+        {"$replaceRoot": {"newRoot": "$latest_record"}}
+    ]
+    data = list(collection.aggregate(pipeline))
+    return json_util.dumps(data), 200
+
+#================================================================================================== 
+# Get the Specific Machine last 10 Data
+@app.route("/get_machine_data", methods=["GET"])
+def get_machine_data():
+    machine_id = request.args.get("machine_id")
+    if not machine_id:
+        return jsonify({"error": "Missing machine_id"}), 400
+
+    data = list(collection.find({"machine_id": machine_id}).sort("timestamp", -1).limit(10))
+    return json_util.dumps(data), 200
+# =================================================================================================
+# Get the Newest Alert
+@app.route("/alerts", methods=["GET"])
+def get_alerts():
+    alerts = list(alert_collection.find().sort("data.timestamp", -1).limit(10))
+    return json_util.dumps(alerts), 200
+
+#==================================================================================================
+# Delete All the Data
+@app.route("/clear_data", methods=["POST"])
+def clear_data():
+    collection.delete_many({})
+    alert_collection.delete_many({})
+    return jsonify({"status": "all data cleared"}), 200
+
+# =================================================================================================
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
