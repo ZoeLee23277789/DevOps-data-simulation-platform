@@ -10,23 +10,32 @@
         <span class="mr-2">🌡️</span>TSMC 設備監控 <span class="text-blue-700">Dashboard</span>
     </h1>
 
-    <!-- 動態儀表板區塊 -->
+    <!-- 📟 即時監控卡片 -->
     <div id="dashboard" class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-10"></div>
 
-    <!-- 嵌入 Grafana Dashboard -->
-    <div class="w-full">
-        <h2 class="text-2xl font-bold mb-4">📊 歷史趨勢圖 (Grafana)</h2>
-        <iframe src="http://localhost:3000/d/your-dashboard-uid/tsmc-dashboard?orgId=1&refresh=5s"
-                width="100%" height="600" frameborder="0"></iframe>
+    <!-- 📈 機器壓力 -->
+    <div class="w-full mb-8">
+        <h2 class="text-2xl font-bold mb-4">📊 壓力歷史趨勢圖</h2>
+        <iframe src="http://localhost:3000/d-solo/behkyp3yzzhtsf/e5a393-e58a9b-e79ba3-e68ea7-machine-pressure?orgId=1&from=now-5m&to=now&refresh=10s&theme=dark&panelId=1"
+                width="100%" height="300" frameborder="0"></iframe>
     </div>
 
+    <!-- 🌡️ 機器溫度 -->
+    <div class="w-full mb-8">
+        <h2 class="text-2xl font-bold mb-4">🌡️ 溫度歷史趨勢圖</h2>
+        <iframe src="http://localhost:3000/d-solo/eehkyjpkkytxca/e6baab-e5baa6-e79ba3-e68ea7-machine-temperature?orgId=1&from=now-5m&to=now&refresh=10s&theme=dark&panelId=1"
+                width="100%" height="300" frameborder="0"></iframe>
+    </div>
+
+
+    <!-- 💻 JS 即時更新 -->
     <script>
         async function fetchData() {
             try {
                 const res = await fetch("/get_latest_per_machine");
                 const json = await res.json();
 
-                // 排序：依據機器 ID 數字
+                // 排序
                 json.sort((a, b) => {
                     const numA = parseInt(a.machine_id.replace("TSMC-M", ""));
                     const numB = parseInt(b.machine_id.replace("TSMC-M", ""));
@@ -42,15 +51,15 @@
 
                     const card = document.createElement("div");
                     card.className = "p-6 rounded-2xl shadow-md text-black";
-                    card.style.backgroundColor = isOverTemp || isOverPressure ? "#fecaca" : "#ffffff"; // bg-red-200
-                    card.style.border = isOverTemp || isOverPressure ? "2px solid #ef4444" : "none";  // border-red-500
+                    card.style.backgroundColor = isOverTemp || isOverPressure ? "#fecaca" : "#ffffff";
+                    card.style.border = isOverTemp || isOverPressure ? "2px solid #ef4444" : "none";
 
                     card.innerHTML = `
-                            <h2 class="text-xl font-semibold mb-2">${item.machine_id}</h2>
-                            <p>🌡️ 溫度：${item.temperature} °C</p>
-                            <p>🧯 壓力：${item.pressure} bar</p>
-                            <p>⏱️ 時間：${new Date(item.timestamp).toLocaleString()}</p>
-                        `;
+                                <h2 class="text-xl font-semibold mb-2">${item.machine_id}</h2>
+                                <p>🌡️ 溫度：${item.temperature} °C</p>
+                                <p>🧯 壓力：${item.pressure} bar</p>
+                                <p>⏱️ 時間：${new Date(item.timestamp).toLocaleString()}</p>
+                            `;
                     dashboard.appendChild(card);
                 });
             } catch (err) {

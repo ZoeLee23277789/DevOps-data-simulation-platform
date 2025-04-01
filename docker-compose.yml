@@ -1,9 +1,11 @@
-version: '3'
+version: '3.9'
 services:
   mongo:
     image: mongo
     ports:
       - "27017:27017"
+    networks:
+      - tsmc_network
 
   flask_api:
     build: ./API
@@ -12,21 +14,35 @@ services:
     depends_on:
       - mongo
     volumes:
-      - ./API:/app   # 可選：熱重載 Flask 用
+      - ./API:/app
+    networks:
+      - tsmc_network
 
   sensor:
     build: ./Sensor
     depends_on:
       - flask_api
-      
+    networks:
+      - tsmc_network
+
   prometheus:
     image: prom/prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    networks:
+      - tsmc_network
 
   grafana:
     image: grafana/grafana
     ports:
       - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - tsmc_network
+
+networks:
+  tsmc_network:
+    driver: bridge
