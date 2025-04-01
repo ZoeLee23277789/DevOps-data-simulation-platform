@@ -43,6 +43,64 @@ services:
     networks:
       - tsmc_network
 
+  airflow-init:
+    build: ./airflow
+    volumes:
+      - airflow_db:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ./exported_reports:/opt/airflow/exported_reports
+    entrypoint: >
+      bash -c "
+        airflow db init &&
+        airflow db migrate &&
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin
+      "
+    networks:
+      - tsmc_network
+
+  airflow:
+    build: ./airflow
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - airflow_db:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ./exported_reports:/opt/airflow/exported_reports
+      - airflow_logs:/opt/airflow/logs
+    command: >
+      bash -c "
+        airflow db upgrade &&
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin &&
+        airflow webserver
+      "
+    ports:
+      - "8080:8080"
+    networks:
+      - tsmc_network
+
+  airflow-scheduler:
+    build: ./airflow
+    restart: always
+    depends_on:
+      - airflow
+    volumes:
+      - airflow_db:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ./exported_reports:/opt/airflow/exported_reports
+      - airflow_logs:/opt/airflow/logs
+    command: scheduler
+    networks:
+      - tsmc_network
+
 networks:
   tsmc_network:
     driver: bridge
+
+volumes:
+  grafana-storage:
+  airflow_logs:
+  airflow_db:
